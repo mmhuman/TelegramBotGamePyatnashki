@@ -8,10 +8,12 @@ MOVE_RIGHT = 1
 MOVE_DOWN = 2
 MOVE_LEFT = 3
 
+MIN_FIELD_SIZE = 2
+MAX_FIELD_SIZE = 64
+
 bot = telebot.TeleBot(config.token)
 
 class Game15:
-    MOVES_TO_SHUFFLE = 20
 
     def __init__(self, n):
         self.n = n
@@ -24,7 +26,8 @@ class Game15:
         self.shuffle()
 
     def shuffle(self):
-        for i in range(self.MOVES_TO_SHUFFLE):
+        MOVES_TO_SHUFFLE = 4 * self.n
+        for i in range(MOVES_TO_SHUFFLE):
             move_num = random.randint(0, 3)
             self.move(move_num)
 
@@ -58,6 +61,7 @@ class Chat:
         self.is_game_started = 0
 
     def start_game(self, n):
+        print("Chat start_game")
         self.is_game_started = 1
         self.game = Game15(n)
 
@@ -67,13 +71,12 @@ dict_chats = dict()
 def start(message):
     if (dict_chats.get(message.chat.id) == None):
         dict_chats[message.chat.id] = Chat()
-#    bot.send_message(message.chat.id, message.text)
     chat = dict_chats[message.chat.id]
     if (message.text.find(' ') == -1):
         wrong_command(message)
         return -1
     n = int(message.text.split(' ')[1])
-    if (n > 0 and n < 64):
+    if (n >= MIN_FIELD_SIZE and n <= MAX_FIELD_SIZE):
         chat.start_game(n)
     else:
         wrong_command(message)
@@ -81,10 +84,22 @@ def start(message):
     bot.send_message(message.chat.id, "Game started")
     print_field(message.chat.id)
 
+@bot.message_handler(commands=['help'])
+def help(message):
+    if (dict_chats.get(message.chat.id) == None):
+        dict_chats[message.chat.id] = Chat()
+    chat = dict_chats[message.chat.id]
+    bot.send_message(message.chat.id,   
+"""commands:
+/start n - start game with field n x n (n >= 2 and n <= 64)
+/w, /a, /s, /d, w, a, s, d - commands that moves tiles
+/end_game - finish game
+/solve - print move sequence that solves the puzzle""")
 
 
 @bot.message_handler(commands=['w', 'd', 's', 'a'])
 def move(message):
+    print("MOVE st")
     if (dict_chats.get(message.chat.id) == None or dict_chats[message.chat.id].is_game_started == 0):
         bot.send_message(message.chat.id, "Game isn't started yet")
         return -1
