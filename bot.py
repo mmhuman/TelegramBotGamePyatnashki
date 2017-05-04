@@ -26,7 +26,7 @@ class Game15:
         self.shuffle()
 
     def shuffle(self):
-        MOVES_TO_SHUFFLE = 4 * self.n
+        MOVES_TO_SHUFFLE = self.n * self.n * self.n
         for i in range(MOVES_TO_SHUFFLE):
             move_num = random.randint(0, 3)
             self.move(move_num)
@@ -61,21 +61,21 @@ class Chat:
         self.is_game_started = 0
 
     def start_game(self, n):
-        print("Chat start_game")
         self.is_game_started = 1
         self.game = Game15(n)
 
 dict_chats = dict()
 
-@bot.message_handler(commands=['start'])
+@bot.message_handler(regexp="^/start")
 def start(message):
+    command = message.text.split('@')[0]
     if (dict_chats.get(message.chat.id) == None):
         dict_chats[message.chat.id] = Chat()
     chat = dict_chats[message.chat.id]
-    if (message.text.find(' ') == -1):
+    if (len(command) < 6 or not(command[6:].isdecimal())):
         wrong_command(message)
         return -1
-    n = int(message.text.split(' ')[1])
+    n = int(command[6:])
     if (n >= MIN_FIELD_SIZE and n <= MAX_FIELD_SIZE):
         chat.start_game(n)
     else:
@@ -84,22 +84,22 @@ def start(message):
     bot.send_message(message.chat.id, "Game started")
     print_field(message.chat.id)
 
-@bot.message_handler(commands=['help'])
+@bot.message_handler(commands=["help"])
 def help(message):
     if (dict_chats.get(message.chat.id) == None):
         dict_chats[message.chat.id] = Chat()
     chat = dict_chats[message.chat.id]
-    bot.send_message(message.chat.id,   
+    bot.send_message(message.chat.id,
 """commands:
-/start n - start game with field n x n (n >= 2 and n <= 64)
-/w, /a, /s, /d, w, a, s, d - commands that moves tiles
+/startN - start game with field N x N (N >= 2 and N <= 64)
+/w, /a, /s, /d, w, a, s, d - commands that move tiles
 /end_game - finish game
-/solve - print move sequence that solves the puzzle""")
+/solve - print move sequence that solves the puzzle
+If you notice bugs contact with me in vk.com/id205067947 or in Telegram @mHuman""")
 
 
 @bot.message_handler(commands=['w', 'd', 's', 'a'])
 def move(message):
-    print("MOVE st")
     if (dict_chats.get(message.chat.id) == None or dict_chats[message.chat.id].is_game_started == 0):
         bot.send_message(message.chat.id, "Game isn't started yet")
         return -1
@@ -109,7 +109,7 @@ def move(message):
     print_field(message.chat.id)
 
 
-@bot.message_handler(commands=['end_game'])
+@bot.message_handler(commands=["end_game"])
 def end_game(message):
     if (dict_chats.get(message.chat.id) == None or dict_chats[message.chat.id].is_game_started == 0):
         bot.send_message(message.chat.id, "Game isn't started yet")
@@ -135,7 +135,7 @@ def print_field(chat_id):
 
 
 
-@bot.message_handler(commands=['solve'])
+@bot.message_handler(commands=["solve"])
 def solve(message):
     if (dict_chats.get(message.chat.id) == None or dict_chats[message.chat.id].is_game_started == 0):
         bot.send_message(message.chat.id, "Game isn't started yet")
@@ -145,7 +145,6 @@ def solve(message):
     for x in chat.game.sol:
         solution = solution + x
     bot.send_message(message.chat.id, solution)
-
 
 
 @bot.message_handler(content_types=["text"])
