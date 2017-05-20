@@ -3,6 +3,7 @@ import config
 import telebot
 import random
 import logging
+import sys
 
 MOVE_UP = 0
 MOVE_RIGHT = 1
@@ -12,19 +13,33 @@ MOVE_LEFT = 3
 MIN_FIELD_SIZE = 2
 MAX_FIELD_SIZE = 16
 
-bot = telebot.TeleBot(config.token)
 
-logging.basicConfig(
-    level = logging.INFO,
-    format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger("bot_info")
-handler = logging.FileHandler("bot_info.log")
-handler.setLevel(logging.INFO)
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-logger.info('Start logging')
+try:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    logger = logging.getLogger("bot_info")
+    handler = logging.FileHandler("bot_info.log")
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.info('Start logging')
+except Exception as e:
+    print("Logging initialization failed")
+    print(e)
+    sys.exit()
+
+
+try:
+    bot = telebot.TeleBot(config.token)
+except Exception as e:
+    logger.info("Bot initialization failed")
+    logger.info(e)
+    sys.exit()
+
 
 class Game15:
     def __init__(self, n):
@@ -81,10 +96,20 @@ class Chat:
 
 dict_chats = dict()
 
+
+def safe_send_message(chat_id, msg):
+    try:
+        bot.send_message(chat_id, msg)
+    except Exception as e:
+        logger.info("Send messege failed")
+        logger.info("%s", str(e))
+
+
 def user_init(id):
     if (dict_chats.get(id) is None):
         dict_chats[id] = Chat()
         logger.info("User %s initialized", str(id))
+
 
 @bot.message_handler(regexp="^/start")
 def start(message):
@@ -101,15 +126,14 @@ def start(message):
     else:
         wrong_command(message)
         return -1
-    bot.send_message(message.chat.id, "Game started")
+    safe_send_message(message.chat.id, "Game started")
     print_field(message.chat.id)
 
 
 @bot.message_handler(commands=["help"])
 def help(message):
     user_init(message.chat.id)
-#    chat = dict_chats[message.chat.id]
-    bot.send_message(message.chat.id, """commands:
+    safe_send_message(message.chat.id, """commands:
 /startN - start game with field N x N (N >= 2 and N <= 16)
 /w, /a, /s, /d, w, a, s, d - commands that move tiles
 /end_game - finish game
@@ -123,7 +147,7 @@ Telegram @mHuman""")
 def move(message):
     user_init(message.chat.id)
     if (dict_chats[message.chat.id].is_game_started == 0):
-        bot.send_message(message.chat.id, "Game isn't started yet")
+        safe_send_message(message.chat.id, "Game isn't started yet")
         return -1
     chat = dict_chats[message.chat.id]
     moves = {'w': MOVE_UP, 'd': MOVE_RIGHT, 's': MOVE_DOWN, 'a': MOVE_LEFT}
@@ -135,7 +159,7 @@ def move(message):
 def end_game(message):
     user_init(message.chat.id)
     if (dict_chats[message.chat.id].is_game_started == 0):
-        bot.send_message(message.chat.id, "Game isn't started yet")
+        safe_send_message(message.chat.id, "Game isn't started yet")
         return -1
     chat = dict_chats[message.chat.id]
     chat.is_game_started = 0
@@ -156,22 +180,22 @@ def print_field(chat_id):
                 answer = answer + "  "
                 l += 1
         answer = answer + '\n'
-    bot.send_message(chat_id, answer)
+    safe_send_message(chat_id, answer)
 
 
 @bot.message_handler(commands=["solve"])
 def solve(message):
     user_init(message.chat.id)
     if (dict_chats[message.chat.id].is_game_started == 0):
-        bot.send_message(message.chat.id, "Game isn't started yet")
+        safe_send_message(message.chat.id, "Game isn't started yet")
         return -1
     chat = dict_chats[message.chat.id]
     solution = ""
     for x in chat.game.sol:
         solution = solution + x
-    logger.info("User %s ask to solve game %s x %s", \
-        message.chat.id, chat.game.n, chat.game.n)
-    bot.send_message(message.chat.id, solution)
+    logger.info("User %s ask to solve game %s x %s",
+                message.chat.id, chat.game.n, chat.game.n)
+    safe_send_message(message.chat.id, solution)
 
 
 @bot.message_handler(content_types=["text"])
@@ -181,7 +205,7 @@ def wrong_command(message):
         message.text = "/" + message.text
         move(message)
         return
-    bot.send_message(message.chat.id, message.text + " is wrong command")
+    safe_send_message(message.chat.id, message.text + " is wrong command")
 
 
 if __name__ == '__main__':
